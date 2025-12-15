@@ -29,10 +29,11 @@ bool Triger_Init(){
 // }
 
 bool Is_Triger() {
+  int cur_triger = digitalRead(PIN_TRIGER);
   bool trig = TRIGER_OFF;
 
   // HIGH → LOW のエッジを検出
-  if (digitalRead(PIN_TRIGER) == HIGH) {
+  if (prev_triger == HIGH && cur_triger == LOW) {
 
     // while の中身を適用
     delayMicroseconds(50);
@@ -40,6 +41,8 @@ bool Is_Triger() {
       trig = TRIGER_ON;
     }
   }
+
+  prev_triger = cur_triger;
   return trig;
 }
 

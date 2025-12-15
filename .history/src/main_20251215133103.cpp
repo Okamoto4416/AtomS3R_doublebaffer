@@ -379,7 +379,6 @@ void setup() {
     if (!check) { Led_Warning(); cur_state = Finished; }
 }
 
-//オリジナルバージョン
 // -------------------- loop（状態遷移の処理） --------------------
 // void loop() {
 //     // entry処理
@@ -457,65 +456,51 @@ void loop() {
 
     switch (cur_state) {
       case Standby:
-        while (true){
-            // トリガのチェック（あなたの既存関数）
-            if (digitalRead(PIN_TRIGER) == HIGH) {
-                delayMicroseconds(50);
-                if (digitalRead(PIN_TRIGER) == HIGH) {
-                    prev_state = cur_state;
-                    cur_state = Recording;
-                    break;
-                }
-            }
-            if (!checkBattery()) {
-                Led_Warning();
-                prev_state = cur_state;
-                cur_state = Finished;
-                break;
-            }
-            if (IsButton()) {
-                if (logFile) logFile.close();
-                Led_Warning();
-                prev_state = cur_state;
-                cur_state = Finished;
-                break;
-            }
+        // トリガのチェック（あなたの既存関数）
+        if (Is_Triger()) {
+            prev_state = cur_state;
+            cur_state = Recording;
+            break;
+        }
+        if (!checkBattery()) {
+            Led_Warning();
+            prev_state = cur_state;
+            cur_state = Finished;
+            break;
+        }
+        if (IsButton()) {
+            if (logFile) logFile.close();
+            Led_Warning();
+            prev_state = cur_state;
+            cur_state = Finished;
+            return;
         }
         break;
-
 
       case Recording:
         // SD 書き出しは sdTask が担当し、imuTask が bufReadyMask をセットすると通知している
         // loop は軽い状態遷移のみ行う
 
         // 記録終了判定
-        while(true){
-            if (digitalRead(PIN_TRIGER) == HIGH) {
-                delayMicroseconds(50);
-                if (digitalRead(PIN_TRIGER) == HIGH) {
-                    break;
-                }
-            }else if (countSample > 60000){
-                break;
+        if (Is_Triger() == TRIGER_ON || countSample > 60000) {
+            Serial.println("記録終了");
+            if (timer) {
+                timerAlarmDisable(timer);
+                timerStop(timer);
             }
-        }
-        Serial.println("記録終了");
-        if (timer) {
-            timerAlarmDisable(timer);
-            timerStop(timer);
-        }
+            
+            // sdTask にも書き込みを促して残りを吐かせる
+            flushRemainingBuffer();
 
-        // sdTask にも書き込みを促して残りを吐かせる
-        flushRemainingBuffer();
-
-        //xTaskNotifyGive(sdTaskHandle);
-        // 少し待ってファイル閉じ（SDが遅い場合は待ち時間増やす）
-        while (__atomic_load_n(&bufReadyMask, __ATOMIC_SEQ_CST) != 0) {
-            vTaskDelay(pdMS_TO_TICKS(1));
+            //xTaskNotifyGive(sdTaskHandle);
+            // 少し待ってファイル閉じ（SDが遅い場合は待ち時間増やす）
+            while (__atomic_load_n(&bufReadyMask, __ATOMIC_SEQ_CST) != 0) {
+                vTaskDelay(pdMS_TO_TICKS(1));
+            }
+            closeFile();
+            prev_state = cur_state;
+            cur_state = Standby;
         }
-        closeFile();
-        prev_state = cur_state;
-        cur_state = Standby;        
         break;
 
       case Finished:

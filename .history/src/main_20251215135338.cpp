@@ -482,7 +482,26 @@ void loop() {
             }
         }
         break;
-
+        // // トリガのチェック（あなたの既存関数）
+        // if (Is_Triger()) {
+        //     prev_state = cur_state;
+        //     cur_state = Recording;
+        //     break;
+        // }
+        // if (!checkBattery()) {
+        //     Led_Warning();
+        //     prev_state = cur_state;
+        //     cur_state = Finished;
+        //     break;
+        // }
+        // if (IsButton()) {
+        //     if (logFile) logFile.close();
+        //     Led_Warning();
+        //     prev_state = cur_state;
+        //     cur_state = Finished;
+        //     break;
+        // }
+        // break;
 
       case Recording:
         // SD 書き出しは sdTask が担当し、imuTask が bufReadyMask をセットすると通知している
@@ -516,6 +535,26 @@ void loop() {
         closeFile();
         prev_state = cur_state;
         cur_state = Standby;        
+
+        // if (Is_Triger() == TRIGER_ON || countSample > 60000) {
+        //     Serial.println("記録終了");
+        //     if (timer) {
+        //         timerAlarmDisable(timer);
+        //         timerStop(timer);
+        //     }
+            
+        //     // sdTask にも書き込みを促して残りを吐かせる
+        //     flushRemainingBuffer();
+
+        //     //xTaskNotifyGive(sdTaskHandle);
+        //     // 少し待ってファイル閉じ（SDが遅い場合は待ち時間増やす）
+        //     while (__atomic_load_n(&bufReadyMask, __ATOMIC_SEQ_CST) != 0) {
+        //         vTaskDelay(pdMS_TO_TICKS(1));
+        //     }
+        //     closeFile();
+        //     prev_state = cur_state;
+        //     cur_state = Standby;
+        // }
         break;
 
       case Finished:

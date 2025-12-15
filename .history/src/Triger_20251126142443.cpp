@@ -16,31 +16,16 @@ bool Triger_Init(){
 
 // 「LOW→HIGH」立ち上がりを検出して、1回だけTRIGER_ONを返す
 // --- ユーザー要求の関数：1回だけtrueを返す ---
-// bool Is_Triger() {
-//   int cur_triger = digitalRead(PIN_TRIGER);
-//   bool rise = TRIGER_OFF;
-
-//   if (prev_triger == HIGH && cur_triger == LOW) {
-//     rise = TRIGER_ON;
-//   }
-
-//   prev_triger = cur_triger;
-//   return rise;           // それ以外は false
-// }
-
 bool Is_Triger() {
-  bool trig = TRIGER_OFF;
+  int cur_triger = digitalRead(PIN_TRIGER);
+  bool rise = TRIGER_OFF;
 
-  // HIGH → LOW のエッジを検出
-  if (digitalRead(PIN_TRIGER) == HIGH) {
-
-    // while の中身を適用
-    delayMicroseconds(50);
-    if (digitalRead(PIN_TRIGER) == LOW) {
-      trig = TRIGER_ON;
-    }
+  if (prev_triger == HIGH && cur_triger == LOW) {
+    rise = TRIGER_ON;
   }
-  return trig;
+
+  prev_triger = cur_triger;
+  return rise;           // それ以外は false
 }
 
 bool IsButton(){

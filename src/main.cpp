@@ -374,6 +374,7 @@ void setup() {
     timerStop(timer);
     timerAlarmDisable(timer);
 
+
     // 初期状態
     cur_state = Standby;
     if (!check) { Led_Warning(); cur_state = Finished; }
@@ -497,8 +498,11 @@ void loop() {
                 }
             }else if (countSample > 60000){
                 break;
+            }else if (IsButton()){
+                break;
             }
         }
+        
         Serial.println("記録終了");
         if (timer) {
             timerAlarmDisable(timer);

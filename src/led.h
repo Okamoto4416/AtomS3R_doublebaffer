@@ -10,4 +10,4 @@ void Led_Warning(void);
 void Led_Recording(void);
 void Led_Finish(void);
 void Led_Check(int bat_state, bool flag);
-void Led_preallocate(void);
+void Led_LowBattery(void);

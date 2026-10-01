@@ -14,7 +14,10 @@
 
 // -------------------- グローバル（共有） --------------------
 hw_timer_t *timer = nullptr;
-
+// ５分経過後のフラグ
+bool warningShown = false;
+// バッテリーがLOW時のフラグ
+bool batteryShown = false;
 // ダブルバッファ本体（2個）
 static char dataBuf[2][BUFSIZE];
 
@@ -44,6 +47,7 @@ TaskHandle_t sdTaskHandle  = nullptr;
 SPIClass spiHSPI(HSPI);
 File logFile;
 String logFilePath;
+String output_Folder;
 int measureCount = 0;
 const char *header = "count,ax,ay,az,gx,gy,gz,mx,my,mz\r\n";
 int headerLen = strlen(header);
@@ -80,9 +84,90 @@ void IRAM_ATTR onTimer() {
     }
 }
 
+// フォルダ作成
+bool createNextFolder() {
+
+    int maxNumber = -1;
+
+    // SDカードのルートフォルダを開く
+    File root = SD.open("/");
+
+    if (!root) {
+        Serial.println("SDカードのルートフォルダを開けませんでした");
+        return false;
+    }
+
+    // ルートフォルダ内をすべて検索
+    File entry = root.openNextFile();
+
+    while (entry) {
+
+        // フォルダだけを対象にする
+        if (entry.isDirectory()) {
+
+            String name = entry.name();
+
+            // 名前の先頭に "/" が付いている場合に備える
+            if (name.startsWith("/")) {
+                name.remove(0, 1);
+            }
+
+            // 「OBS」で始まっているか確認
+            if (name.startsWith("OBS")) {
+
+                // OBSの後ろの部分
+                String numberString = name.substring(3);
+
+                // OBSの後ろがすべて数字か確認
+                bool allDigits = numberString.length() > 0;
+
+                for (int i = 0; i < numberString.length(); i++) {
+                    if (!isDigit(numberString[i])) {
+                        allDigits = false;
+                        break;
+                    }
+                }
+
+                // OBS + 数字 のフォルダだった場合
+                if (allDigits) {
+
+                    int number = numberString.toInt();
+
+                    if (number > maxNumber) {
+                        maxNumber = number;
+                    }
+                }
+            }
+        }
+
+        entry.close();
+        entry = root.openNextFile();
+    }
+
+    root.close();
+
+    // 次の番号を決定
+    int nextNumber = maxNumber + 1;
+
+    // フォルダパスを作成
+    output_Folder = "/OBS" + String(nextNumber);
+
+    // フォルダを作成
+    if (!SD.mkdir(output_Folder)) {
+        Serial.print("フォルダの作成に失敗しました: ");
+        Serial.println(output_Folder);
+        return false;
+    }
+
+    Serial.print("作成したフォルダ: ");
+    Serial.println(output_Folder);
+
+    return true;
+}
+
 // -------------------- ファイル操作 --------------------
 bool makeFile() {
-  logFilePath = "/OBS" + String(measureCount) + ".csv";
+  logFilePath = output_Folder + "/OBS" + String(measureCount) + ".csv";
   logFile = SD.open(logFilePath, FILE_WRITE);
   if (!logFile) {
     Serial.println("ファイルを開けませんでした");
@@ -258,6 +343,7 @@ void onEntry(State s) {
     switch (s) {
       case Standby:
         Led_Standby();
+        batteryShown = false;
         if (!makeFile()) {
             Led_Warning();
             Led_Finish();
@@ -267,7 +353,8 @@ void onEntry(State s) {
 
       case Recording:
         Led_Recording();
-
+        //５分経過後のフラグをfalseに初期化
+            
         // タイマーをリセットして開始
         if (timer) {
             timerAlarmDisable(timer);
@@ -308,6 +395,10 @@ void setup() {
 
     bool check = true;
 
+    warningShown = false;
+
+    batteryShown = false;
+
     auto cfg = M5.config();
     cfg.internal_imu = true;
     cfg.external_imu = false;
@@ -343,6 +434,11 @@ void setup() {
     // IMU heavy first update
     M5.Imu.update();
 
+    // 記録用フォルダ作成（電源を入れた時にのみフォルダは作成する）
+    if (! createNextFolder()){
+        Serial.printf("フォルダ作成失敗");
+        check = false;
+    }
     // タスク生成：
     // imuTask（高優先度） — Producer
     xTaskCreatePinnedToCore(
@@ -468,12 +564,6 @@ void loop() {
                     break;
                 }
             }
-            if (!checkBattery()) {
-                Led_Warning();
-                prev_state = cur_state;
-                cur_state = Finished;
-                break;
-            }
             if (IsButton()) {
                 if (logFile) logFile.close();
                 Led_Warning();
@@ -481,6 +571,17 @@ void loop() {
                 cur_state = Finished;
                 break;
             }
+
+            // バッテリーの確認
+            if (!checkBattery() && !batteryShown) {
+                Led_LowBattery();
+                batteryShown = true;
+
+                // prev_state = cur_state;
+                // cur_state = Finished;
+                // break;
+            }
+
         }
         break;
 
@@ -496,11 +597,16 @@ void loop() {
                 if (digitalRead(PIN_TRIGER) == HIGH) {
                     break;
                 }
-            }else if (countSample > 60000){
-                break;
             }else if (IsButton()){
                 break;
             }
+            
+            if (countSample > 60000 && !warningShown){
+                Led_Warning();
+                Serial.printf("5分経過");
+                warningShown = true;
+            }
+
         }
         
         Serial.println("記録終了");

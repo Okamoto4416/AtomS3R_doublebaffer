@@ -24,17 +24,17 @@ void Led_Standby() {
 
 void Led_Warning(){
   M5.Display.setBrightness(50);       // 暗めにする
-  M5.Display.fillScreen(TFT_RED);   // 赤い画面にする 
+  M5.Display.fillScreen(TFT_RED);   // 赤い画面にする 警告状態（終了前や5分経った後に知らせる）
   delay(WARNING_TIME); 
 }
 
 void Led_Finish(){
   M5.Display.setBrightness(0);       // 暗めにする
-  M5.Display.fillScreen(TFT_BLACK);   // 黒い画面にする  
+  M5.Display.fillScreen(TFT_BLACK);   // 黒い画面にする  終了状態
 }
 
-void Led_preallocate(){
-  M5.Display.setBrightness(50);
-  M5.Display.fillScreen(TFT_GREEN);
+void Led_LowBattery(){
+  M5.Display.setBrightness(50); //暗めにする
+  M5.Display.fillScreen(TFT_YELLOW); //黄色にする　バッテリーが少ない状態
 }
 
